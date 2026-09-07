@@ -66,12 +66,26 @@ jobs:
       - name: Test release automation
         run: python -m unittest discover -s tests -p "test_release_automation.py"
 
-      - name: Validate Rust workspace
+      # As in lint.yml: fmt/clippy/test are each independent checks. GitHub
+      # Actions runs a multi-line `run:` block via `bash -e`, which aborts
+      # the whole script at the first failing line -- so bundling them into
+      # one step has the same masking effect as chaining separate steps with
+      # no guard. Split into individual steps with `if: ${{ !cancelled() }}`
+      # so a release-prep run reports every problem at once instead of one
+      # per re-dispatch.
+      - name: Run cargo fmt --check
         working-directory: rust
-        run: |
-          cargo fmt --check
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
+        run: cargo fmt --check
+
+      - name: Run cargo clippy
+        if: ${{ !cancelled() }}
+        working-directory: rust
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run cargo test
+        if: ${{ !cancelled() }}
+        working-directory: rust
+        run: cargo test --workspace
 
       - name: Ensure release preparation label exists
         env:
