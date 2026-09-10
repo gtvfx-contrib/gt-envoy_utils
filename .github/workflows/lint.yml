@@ -62,15 +62,19 @@ jobs:
       # to run them locally. `!cancelled()` (rather than `always()`) still
       # lets an explicit workflow cancellation stop the job promptly.
       - name: Check formatting
+        id: fmt
         working-directory: rust
+        continue-on-error: true
         run: cargo fmt --check
 
       - name: Run Clippy
-        if: ${{ !cancelled() }}
         working-directory: rust
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Run tests
-        if: ${{ !cancelled() }}
         working-directory: rust
         run: cargo test --workspace
+
+      - name: Fail if formatting failed
+        if: ${{ !cancelled() && steps.fmt.outcome == 'failure' }}
+        run: exit 1
